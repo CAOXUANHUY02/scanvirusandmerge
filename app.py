@@ -3,11 +3,13 @@ import os
 
 import requests
 from flask import Flask, jsonify, render_template, request
+from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
 from module import VirusTotalScanner
 
 app = Flask(__name__, template_folder='static', static_folder='static')
+CORS(app, resources={r"/*": {"origins": "http://localhost:5000"}})
 
 UPLOAD_FOLDER = 'upload'
 ALLOWED_EXTENSIONS = {'zip'}
