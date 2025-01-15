@@ -232,6 +232,7 @@
             }
 
             resetUI();
+            fileInput.value = '';
             uploadFile(file);
         }
 
@@ -286,6 +287,7 @@
             errorBox.style.display = 'none';
             deleteBtn.style.display = 'none';
             currentFileHash = null;
+            dropZone.classList.remove('dragover');
         }
 
         deleteBtn.addEventListener('click', () => {

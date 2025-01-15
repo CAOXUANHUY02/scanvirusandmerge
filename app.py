@@ -1,5 +1,6 @@
 import hashlib
 import os
+import time
 
 import requests
 from flask import Flask, jsonify, render_template, request
@@ -60,27 +61,37 @@ def scan_file():
         filename = secure_filename(file.filename)
         filepath = os.path.join(UPLOAD_FOLDER, filename)
         file.save(filepath)
+
         scan_result = scanner.scan_file(filepath)
         if not scan_result['success']:
             return jsonify({
                 'success': False,
                 'error': scan_result.get('error', 'Scan failed')
             }), 500
-        analysis_result = scanner.get_analysis(scan_result['scan_id'])
-        if not analysis_result['success']:
+        max_retries = 5
+        retry_delay = 2
+
+        for attempt in range(max_retries):
+            analysis_result = scanner.get_analysis(scan_result['scan_id'])
+
+            if analysis_result['success']:
+                stats = analysis_result['stats']
+                is_safe = stats.get('malicious', 0) == 0 and stats.get(
+                    'suspicious', 0) == 0
+                response = {
+                    'status': is_safe,
+                    'sha256': scan_result['sha256']
+                }
+                return jsonify(response)
+
+            if analysis_result.get('status') != "completed" and attempt < max_retries - 1:
+                time.sleep(retry_delay)
+                continue
+
             return jsonify({
                 'success': False,
-                'error': analysis_result.get('error', 'Analysis failed')
+                'error': analysis_result.get('error', 'Analysis failed or timeout')
             }), 500
-        stats = analysis_result['stats']
-        is_safe = stats.get('malicious', 0) == 0 and stats.get(
-            'suspicious', 0) == 0
-        response = {
-            'status': is_safe,
-            'sha256': scan_result['sha256']
-        }
-
-        return jsonify(response)
 
     except Exception as e:
         return jsonify({
