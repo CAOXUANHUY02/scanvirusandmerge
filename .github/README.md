@@ -20,9 +20,11 @@
     ./setup.sh
     ~~~
 
-## API Endpoint
+## API Documentation
 
-### Quét File
+### 1. Quét File
+
+Endpoint để quét file và kiểm tra virus.
 
 ~~~ http
 POST /
