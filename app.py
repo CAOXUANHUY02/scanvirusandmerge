@@ -2,12 +2,12 @@ import hashlib
 import os
 
 import requests
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, render_template, request
 from werkzeug.utils import secure_filename
 
 from module import VirusTotalScanner
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='static', static_folder='static')
 
 UPLOAD_FOLDER = 'upload'
 ALLOWED_EXTENSIONS = {'zip'}
@@ -27,6 +27,11 @@ def get_file_sha256(filepath):
         for byte_block in iter(lambda: f.read(4096), b""):
             sha256_hash.update(byte_block)
     return sha256_hash.hexdigest()
+
+
+@app.route('/')
+def index():
+    return render_template('index.html')
 
 
 @app.route('/', methods=['POST'])

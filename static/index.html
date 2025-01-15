@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Scanner</title>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Google Sans', Arial, sans-serif;
+        }
+
+        body {
+            background-color: #f8f9fa;
+            color: #202124;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+        }
+
+        .scan-box {
+            background: white;
+            border-radius: 8px;
+            padding: 2rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            color: #1a73e8;
+            margin-bottom: 0.5rem;
+        }
+
+        .upload-area {
+            border: 2px dashed #dadce0;
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 1rem;
+        }
+
+        .upload-area:hover {
+            border-color: #1a73e8;
+            background-color: #f8f9fa;
+        }
+
+        .upload-area.dragover {
+            border-color: #1a73e8;
+            background-color: #e8f0fe;
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: #5f6368;
+            margin-bottom: 1rem;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .btn {
+            background-color: #1a73e8;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn:hover {
+            background-color: #1557b0;
+        }
+
+        .btn:disabled {
+            background-color: #dadce0;
+            cursor: not-allowed;
+        }
+
+        .result {
+            margin-top: 2rem;
+            padding: 1rem;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .result.safe {
+            background-color: #e6f4ea;
+            color: #137333;
+            border: 1px solid #137333;
+        }
+
+        .result.unsafe {
+            background-color: #fce8e6;
+            color: #c5221f;
+            border: 1px solid #c5221f;
+        }
+
+        .progress {
+            display: none;
+            margin: 1rem 0;
+        }
+
+        .progress-bar {
+            height: 4px;
+            background-color: #e6f4ea;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background-color: #1a73e8;
+            width: 0%;
+            animation: progress 2s infinite linear;
+        }
+
+        @keyframes progress {
+            0% { width: 0%; }
+            100% { width: 100%; }
+        }
+
+        .error {
+            color: #c5221f;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                margin: 1rem;
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="scan-box">
+            <div class="header">
+                <h1>File Scanner</h1>
+                <p>Upload your ZIP file for virus scanning</p>
+            </div>
+
+            <div class="upload-area" id="dropZone">
+                <div class="upload-icon">📁</div>
+                <p>Drag and drop your file here or click to browse</p>
+                <p class="file-info" style="margin-top: 0.5rem; font-size: 0.9rem; color: #5f6368;">
+                    Maximum file size: 32MB
+                </p>
+            </div>
+
+            <input type="file" id="fileInput" class="file-input" accept=".zip">
+
+            <div class="progress">
+                <p>Scanning file...</p>
+                <div class="progress-bar">
+                    <div class="progress-bar-fill"></div>
+                </div>
+            </div>
+
+            <div class="result" id="resultBox">
+                <p id="resultText"></p>
+                <button class="btn" id="deleteBtn" style="margin-top: 1rem; display: none;">
+                    Delete from VirusTotal
+                </button>
+            </div>
+
+            <div class="error" id="errorBox"></div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const progress = document.querySelector('.progress');
+        const resultBox = document.getElementById('resultBox');
+        const resultText = document.getElementById('resultText');
+        const errorBox = document.getElementById('errorBox');
+        const deleteBtn = document.getElementById('deleteBtn');
+        let currentFileHash = null;
+
+        // Drag and drop handlers
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length) handleFile(files[0]);
+        });
+
+        dropZone.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) handleFile(e.target.files[0]);
+        });
+
+        function handleFile(file) {
+            if (!file.name.toLowerCase().endsWith('.zip')) {
+                showError('Please upload a ZIP file');
+                return;
+            }
+
+            if (file.size > 32 * 1024 * 1024) {
+                showError('File size exceeds 32MB limit');
+                return;
+            }
+
+            resetUI();
+            uploadFile(file);
+        }
+
+        function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            progress.style.display = 'block';
+
+            fetch('/', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                progress.style.display = 'none';
+                if (data.error) {
+                    showError(data.error);
+                    return;
+                }
+
+                currentFileHash = data.sha256;
+                showResult(data.status);
+            })
+            .catch(error => {
+                progress.style.display = 'none';
+                showError('An error occurred while scanning the file');
+                console.error('Error:', error);
+            });
+        }
+
+        function showResult(isSafe) {
+            resultBox.style.display = 'block';
+            resultBox.className = 'result ' + (isSafe ? 'safe' : 'unsafe');
+            resultText.textContent = isSafe ?
+                '✅ File is safe to use' :
+                '⚠️ File may be dangerous';
+
+            if (currentFileHash) {
+                deleteBtn.style.display = 'block';
+            }
+        }
+
+        function showError(message) {
+            errorBox.style.display = 'block';
+            errorBox.textContent = message;
+        }
+
+        function resetUI() {
+            progress.style.display = 'none';
+            resultBox.style.display = 'none';
+            errorBox.style.display = 'none';
+            deleteBtn.style.display = 'none';
+            currentFileHash = null;
+        }
+
+        deleteBtn.addEventListener('click', () => {
+            if (!currentFileHash) return;
+
+            fetch(`/delete/${currentFileHash}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    deleteBtn.style.display = 'none';
+                    showError('File deleted from VirusTotal successfully');
+                } else {
+                    showError(data.error || 'Failed to delete file');
+                }
+            })
+            .catch(error => {
+                showError('An error occurred while deleting the file');
+                console.error('Error:', error);
+            });
+        });
+    </script>
+</body>
+</html>
