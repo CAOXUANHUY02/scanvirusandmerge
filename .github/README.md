@@ -7,13 +7,13 @@
     cd scanvirusandmerge
     ~~~
 
-2. Tạo file `.env` và thêm VirusTotal API key vafo:
+2. Tạo file `.env` và thêm VirusTotal API key vào:
 
     ~~~ env
     VT_API_KEY=virustotal_api_key
     ~~~
 
-3. Chạy script cài đặt("Trong VPS, nên dùng Ubuntu 20.04 hoặc Debian 12"):
+4. Chạy script cài đặt("Trong VPS, nên dùng Ubuntu 20.04 hoặc Debian 12"):
 
     ~~~ bash
     chmod +x setup.sh
